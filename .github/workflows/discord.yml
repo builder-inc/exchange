@@ -1,9 +1,6 @@
 name: Notify Discord
 
 on:
-  push:
-    branches:
-      - master
   pull_request:
     types: [closed, opened]
     branches:
@@ -15,7 +12,6 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'push' ||
       github.event_name == 'issues' ||
       (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
       (github.event_name == 'pull_request' && github.event.action == 'opened')
@@ -32,7 +28,7 @@ jobs:
           elif [ "${{ github.event_name }}" == "issues" ]; then
             MESSAGE="New Issue\nIssue: ${{ github.event.issue.html_url }}\nTitle: ${{ github.event.issue.title }}\nRaised by: ${{ github.actor }}"
           else
-            MESSAGE="Push to master\nPushed by: ${{ github.actor }}\nAuthor: ${{ github.event.head_commit.author.name }}\nCommit: ${{ github.event.head_commit.message }}"
+            exit 0
           fi
           curl -H "Content-Type: application/json" \
           -d "{\"content\": \"<@&${DISCORD_ATOMIC_ROLE_ID}> $MESSAGE\"}" \
