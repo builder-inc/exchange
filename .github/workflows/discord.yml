@@ -1,7 +1,7 @@
 name: Notify Discord
 
 on:
-  pull_request:
+  pull_request_target:
     types: [closed, opened]
     branches:
       - master
@@ -13,17 +13,17 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'issues' ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
-      (github.event_name == 'pull_request' && github.event.action == 'opened')
+      (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true) ||
+      (github.event_name == 'pull_request_target' && github.event.action == 'opened')
     steps:
       - name: Send to Discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           DISCORD_ATOMIC_ROLE_ID: ${{ secrets.DISCORD_ATOMIC_ROLE_ID }}
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ] && [ "${{ github.event.action }}" == "opened" ]; then
+          if [ "${{ github.event_name }}" == "pull_request_target" ] && [ "${{ github.event.action }}" == "opened" ]; then
             MESSAGE="PR Opened\nPR: ${{ github.event.pull_request.html_url }}\nTitle: ${{ github.event.pull_request.title }}\nRaised by: ${{ github.event.pull_request.user.login }}"
-          elif [ "${{ github.event_name }}" == "pull_request" ] && [ "${{ github.event.action }}" == "closed" ]; then
+          elif [ "${{ github.event_name }}" == "pull_request_target" ] && [ "${{ github.event.action }}" == "closed" ]; then
             MESSAGE="PR Merged\nPR: ${{ github.event.pull_request.html_url }}\nTitle: ${{ github.event.pull_request.title }}\nRaised by: ${{ github.event.pull_request.user.login }}\nMerged by: ${{ github.event.pull_request.merged_by.login }}"
           elif [ "${{ github.event_name }}" == "issues" ]; then
             MESSAGE="New Issue\nIssue: ${{ github.event.issue.html_url }}\nTitle: ${{ github.event.issue.title }}\nRaised by: ${{ github.actor }}"
