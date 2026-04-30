@@ -1,5 +1,6 @@
 #include "include/WebSocketServer.hpp"
 #include "include/MarketData.hpp"
+#include <charconv>
 #include <chrono>
 #include <include/handlers/Handlers.hpp>
 #include <nlohmann/json.hpp>
@@ -108,20 +109,22 @@ void WebSocketServer::on_message(WebSocket *ws, std::string_view message,
     SocketData *user = ws->getUserData();
     if (!message.empty() &&
         std::all_of(message.begin(), message.end(), ::isdigit)) {
-        try {
-            auto server_timestamp =
-                std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::system_clock::now().time_since_epoch())
-                    .count();
-            long long client_timestamp = std::stoll(std::string(message));
-            long long diff = server_timestamp - client_timestamp;
-            std::println("[LOG]: server: {} client: {} diff: {}",
-                         server_timestamp, client_timestamp, diff);
-
-        } catch (const std::exception &e) {
-            std::println(stderr, "Recieved a non-timestamp message: {} ",
+        long long client_timestamp{};
+        // https://en.cppreference.com/cpp/utility/from_chars
+        auto [ptr, ec] = std::from_chars(
+            message.data(), message.data() + message.size(), client_timestamp);
+        if (ec != std::errc{}) {
+            std::println(stderr, "Received a non-timestamp message: {}",
                          message);
+            return;
         }
+        auto server_timestamp =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch())
+                .count();
+        long long diff = server_timestamp - client_timestamp;
+        std::println("[LOG]: server: {} client: {} diff: {}", server_timestamp,
+                     client_timestamp, diff);
         return;
     }
 
@@ -136,21 +139,26 @@ void WebSocketServer::on_message(WebSocket *ws, std::string_view message,
         return MessageType::UNKNOWN;
     };
 
-    try {
-        json msg = json::parse(message);
-        std::string type = msg.value("type", "");
-        MessageType mtype = message_type_from_string(type);
-        if (mtype != MessageType::LOGIN && !user->is_authenticated) {
-            ws->send(R"({"type":"error","message":"not_authenticated"})",
-                     uWS::OpCode::TEXT);
-            return;
-        }
+    json msg = json::parse(message, nullptr, false);
+    if (msg.is_discarded()) {
+        std::println("[Error] Invalid JSON:");
+        ws->send(R"({"type":"error","message":"invalid_json"})",
+                 uWS::OpCode::TEXT);
+        return;
+    }
+    std::string type = msg.value("type", "");
+    MessageType mtype = message_type_from_string(type);
+    if (mtype != MessageType::LOGIN && !user->is_authenticated) {
+        ws->send(R"({"type":"error","message":"not_authenticated"})",
+                 uWS::OpCode::TEXT);
+        return;
+    }
 
-        /*
-         * TODO: class with virtual handler function would be the best choice
-         * for this :)"
-         */
-        // clang-format off
+    /*
+     * TODO: class with virtual handler function would be the best choice
+     * for this :)"
+     */
+    // clang-format off
         switch (mtype) {
             case MessageType::LOGIN: {
                 LoginHandler(this, ws, user, msg);
@@ -171,12 +179,7 @@ void WebSocketServer::on_message(WebSocket *ws, std::string_view message,
                 break;
             }
         }
-        // clang-format on
-    } catch (const std::exception &e) {
-        std::println("[Error] Invalid JSON:{}", e.what());
-        ws->send(R"({"type":"error","message":"invalid_json"})",
-                 uWS::OpCode::TEXT);
-    }
+    // clang-format on
 }
 
 void WebSocketServer::on_close(WebSocket * /*ws*/, int /*code*/,

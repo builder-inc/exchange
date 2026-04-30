@@ -13,7 +13,7 @@ set(TARGET_NAME websocket_server)
 if (MSVC)
     add_compile_options(/W4 /WX)
 else()
-    add_compile_options(-Wall -Wextra -Wpedantic)
+    add_compile_options(-Wall -Wextra -Wpedantic -fno-exceptions)
     if (CMAKE_BUILD_TYPE MATCHES "Debug|RelWithDebInfo")
         add_compile_options(
             -fsanitize=address,undefined

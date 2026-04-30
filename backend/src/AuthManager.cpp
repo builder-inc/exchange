@@ -4,7 +4,8 @@
 AuthManager::AuthManager() {
     credentials_ = {
         {"shashwat", "shashwat"},
-        {"nero", "nero"}
+        {"nero", "nero"},
+        {"test", "test"}
     };
 };
 // clang-format on
