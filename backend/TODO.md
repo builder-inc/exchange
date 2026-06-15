@@ -1,3 +1,4 @@
+### NICE
 ```cpp
 enum class MessageType : uint32_t {
     LOGIN_REQUEST,
