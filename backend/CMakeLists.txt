@@ -34,9 +34,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(tec.h)
 
-# https://json.nlohmann.me/integration/cmake/#fetchcontent
-FetchContent_Declare(nlohmann_json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
-FetchContent_MakeAvailable(nlohmann_json)
+# nlohmann/json via git submodule (backend/external/json)
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+set(JSON_Install OFF CACHE INTERNAL "")
+add_subdirectory(external/json)
 
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
