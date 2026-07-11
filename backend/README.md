@@ -62,7 +62,7 @@ All messages are JSON strings. Clients must authenticate before using any other 
 #### Login
 Send:
 ```json
-{"type": "login", "username": "test", "password": "test"}
+{"type": "login", "username": "shashwat", "password": "shashwat"}
 ```
 Response:
 ```json
@@ -70,7 +70,7 @@ Response:
 ```
 Other statuses: `"failed"`, `"already_logged_in"`
 
-Default credentials: `test/test`
+Default credentials: `shashwat`/`shashwat`, `nero`/`nero`
 
 #### Subscribe to Market Data
 Send:
@@ -126,7 +126,7 @@ websocat -v --insecure wss://localhost:7000
 
 Then type messages directly:
 ```json
-{"type": "login", "username": "test", "password": "test"}
+{"type": "login", "username": "shashwat", "password": "shashwat"}
 {"type": "subscribe", "channel": "market/snapshot"}
 ```
 

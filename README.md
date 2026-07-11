@@ -1,38 +1,48 @@
 # Exchange
 
-A real-time trading exchange system built with C++, React, and Node.js.
+A small real-time trading exchange playground: C++ market-data server, React UI,
+and a Node prototype simulator.
 
 ## What is this?
 
-This project lets you run your own trading exchange on your computer. It has three parts:
+Three packages under one repo:
 
-- **Backend** - The matching engine written in C++ that processes buy/sell orders
-- **Frontend** - A web interface built with React to view and interact with the exchange
-- **Simulator** - A tool that generates fake market data to test the exchange
+| Package | Role |
+|---------|------|
+| **backend** | C++23 WebSocket server (uWebSockets + OpenSSL). Auth, channel subscribe, live market snapshots over `wss://`. |
+| **frontend** | React + TypeScript (Vite) UI that connects to the backend, logs in, and renders the order book. |
+| **simulator** | Early Node.js WebSocket mock that emits random bid/ask levels. Useful as a stand-in when the C++ server is not running. |
 
-## Project Structure
+This is not a full matching engine yet. The backend currently focuses on secure
+WebSocket transport, login, and broadcast market data. Binary protocol sketches
+for order entry live in `backend/TODO.md`.
+
+## Project layout
 
 ```
 exchange/
-├── backend/          # C++ matching engine (uWebSockets)
-├── frontend/         # React + TypeScript web app (Vite)
-└── simulator/        # Node.js market data simulator
+├── backend/     # C++ WSS server
+├── frontend/    # React client
+└── simulator/   # Node mock market-data server
 ```
 
 ## Prerequisites
 
-Before you begin, make sure you have these installed:
+- C++23 compiler (g++ or clang++)
+- CMake ≥ 3.20
+- OpenSSL + zlib development libraries
+- Node.js 18+ and npm
+- Git (for submodules)
 
-- **C++ compiler** (g++ or clang++ with C++23 support)
-- **CMake** (version 3.20 or higher)
-- **OpenSSL** development libraries
-- **Node.js** (version 18 or higher recommended)
-- **npm** (comes with Node.js)
+On Debian/Ubuntu:
 
+```bash
+sudo apt install build-essential cmake libssl-dev zlib1g-dev
+```
 
-## Getting Started
+## Getting started
 
-### Step 1: Clone and setup
+### 1. Clone and init submodules
 
 ```bash
 git clone https://github.com/builder-inc/exchange.git
@@ -40,57 +50,65 @@ cd exchange
 git submodule update --init --recursive
 ```
 
-This downloads the uWebSockets library that the backend needs.
+### 2. Backend (C++ WSS server)
 
-### Step 2: Build the Backend
+The server speaks **WebSocket over TLS** on port `7000`.
 
-The backend uses secure WebSocket connections (WSS), so you need SSL certificates for local development.
-
-**Generate SSL certificates:**
+Generate a local self-signed cert (dev only):
 
 ```bash
 cd backend
 mkdir -p certs
-openssl req -x509 -sha256 -newkey rsa:2048 -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes \
-    -subj "/C=IN/O=Builder Inc./CN=localhost" \
-    -addext "subjectAltName = DNS:localhost"
+openssl req -x509 -sha256 -newkey rsa:2048 \
+  -keyout certs/key.pem -out certs/cert.pem -days 365 -nodes \
+  -subj "/C=IN/O=Builder Inc./CN=localhost" \
+  -addext "subjectAltName = DNS:localhost"
 ```
 
-**Build the C++ engine:**
+Build and run:
 
 ```bash
 cmake -S . -B build
-cd build && make
+cmake --build build
+cd build && ./websocket_server
 ```
 
-**Run the test suite (optional):**
+Optional tests:
+
 ```bash
-make check
+cmake --build build --target check
+# or: cd build && make tests && ./tests
 ```
 
-**Start the backend server:**
-```bash
-./websocket_server
-```
+Demo logins hard-coded in the server:
 
-### Step 3: Install Frontend Dependencies
+| Username  | Password  |
+|-----------|-----------|
+| `shashwat` | `shashwat` |
+| `nero`     | `nero`     |
+
+WebSocket message formats, error codes, and `websocat` / `wscat` examples are in
+[backend/README.md](backend/README.md).
+
+### 3. Frontend
 
 ```bash
 cd frontend
 npm install
-```
-
-**Start the frontend dev server:**
-
-```bash
 npm run dev
 ```
 
-This starts a local server. Open the URL shown in your terminal (usually http://localhost:5173).
+Open the Vite URL (usually `http://localhost:5173`), connect to
+`wss://localhost:7000`, log in, then subscribe to `market/snapshot`.
 
-### Step 4: Start the Simulator
+Browsers block self-signed certificates by default. Trust
+`backend/certs/cert.pem` in your OS/browser, or accept the certificate warning
+before the WebSocket handshake will succeed.
 
-In a new terminal:
+### 4. Simulator (optional mock)
+
+The simulator is a **separate** mock server on port `7000`. Do not run it at the
+same time as the C++ backend — both bind the same port.
 
 ```bash
 cd simulator
@@ -98,53 +116,59 @@ npm install
 npm run dev
 ```
 
-The simulator will start sending mock market data to test the exchange.
+Use it when you only need a throwaway market-data stream and do not want to
+build the C++ server.
 
-## Available Commands
+## Typical local workflow
+
+1. Generate certs and start the backend: `cd backend/build && ./websocket_server`
+2. Start the frontend: `cd frontend && npm run dev`
+3. In the UI: Connect → Login → Subscribe
+
+## Commands cheat sheet
 
 ### Backend
 
-**API Details:** See [backend/README.md](backend/README.md) for WebSocket API documentation, JSON message formats, and terminal testing tools (websocat, wscat).
-
-| Command                                  | Description                              |
-|------------------------------------------|------------------------------------------|
-| `cmake -S backend -B backend/build`      | Generate build files (from project root) |
-| `cd backend && cmake -S . -B build`      | Generate build files (from backend dir)  |
-| `cd backend/build && make`               | Compile the engine                       |
-| `cd backend/build && make tests`         | Build the test suite                     |
-| `cd backend/build && ./tests`            | Run the test suite                       |
-| `cd backend/build && make check`         | Build and run tests in one step          |
-| `cd backend/build && ./websocket_server` | Start the backend WebSocket server       |
+| Command | Description |
+|---------|-------------|
+| `cmake -S backend -B backend/build` | Configure from repo root |
+| `cmake --build backend/build` | Build server |
+| `cmake --build backend/build --target tests` | Build tests |
+| `backend/build/tests` | Run tests |
+| `backend/build/websocket_server` | Run WSS server (cwd with access to `certs/`) |
 
 ### Frontend
 
-| Command           | Description                              |
-|-------------------|------------------------------------------|
-| `npm run dev`     | Start development server with hot reload |
-| `npm run build`   | Create production build in `dist/`       |
-| `npm run lint`    | Check code for style issues              |
-| `npm run preview` | Preview the production build locally     |
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Dev server with HMR |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint |
+| `npm run preview` | Preview production build |
 
 ### Simulator
 
-| Command       | Description                     |
-|---------------|---------------------------------|
-| `npm run dev` | Start the market data simulator |
-
-## Development Workflow
-
-1. Start the backend first: `cd backend/build && ./websocket_server`
-2. Start the simulator: `cd simulator && npm run dev`
-3. Start the frontend: `cd frontend && npm run dev`
-4. Open the frontend URL in your browser
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start mock WS server on port 7000 |
 
 ## Troubleshooting
 
-**CMake can't find OpenSSL:**
-Make sure libssl-dev (Debian/Ubuntu) or openssl (macOS) is installed.
+**CMake cannot find OpenSSL**  
+Install `libssl-dev` (Debian/Ubuntu) or `openssl` (Homebrew).
 
-**Submodule error:**
-Run `git submodule update --init --recursive` from the project root.
+**Submodule checkout is empty**  
+From the repo root: `git submodule update --init --recursive`.
 
-**OpenSSL certificate warnings:**
-The browser will show a warning for self-signed certificates. This is normal for local development. Click "Advanced" and proceed.
+**Browser WebSocket fails with a certificate error**  
+Expected with the self-signed cert. Trust `backend/certs/cert.pem` or use
+`websocat --insecure wss://localhost:7000` for CLI testing.
+
+**Port 7000 already in use**  
+Stop the other process. Backend and simulator both default to 7000.
+
+## Further reading
+
+- [backend/README.md](backend/README.md) — build notes and WebSocket API
+- [frontend/README.md](frontend/README.md) — client usage
+- [backend/TODO.md](backend/TODO.md) — sketched binary trading protocol
